@@ -6,20 +6,21 @@ const MAX_BODY_BYTES = 1024 * 1024 // 1 MB
 
 export function parseJsonBody<T = unknown>(req: IncomingMessage): Promise<T> {
 	return new Promise((resolve, reject) => {
-		let body = ""
+		const chunks: Buffer[] = []
 		let size = 0
-		req.on("data", (chunk) => {
+		req.on("data", (chunk: Buffer) => {
 			size += chunk.length
 			if (size > MAX_BODY_BYTES) {
 				req.destroy()
 				reject(new Error("Payload too large"))
 				return
 			}
-			body += chunk
+			chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
 		})
 		req.on("end", () => {
 			try {
-				resolve(body ? JSON.parse(body) : ({} as T))
+				const body = chunks.length ? Buffer.concat(chunks).toString("utf-8") : ""
+				resolve(body ? (JSON.parse(body) as T) : ({} as T))
 			} catch (err) {
 				reject(err)
 			}
